@@ -306,6 +306,9 @@ typedef struct ISHPullUpAnimationConfiguration ISHPullUpAnimationConfiguration;
 
 /// Call this method when the minimum or maximum values change.
 - (void)invalidateLayout;
+
+/// Call this method to add a pan gesture to an external UIView.
+- (void)setupPanGestureForExternalView:(UIView*) view;
 @end
 
 NS_ASSUME_NONNULL_END

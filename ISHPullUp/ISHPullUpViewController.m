@@ -15,6 +15,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 
 @interface ISHPullUpViewController ()<UIGestureRecognizerDelegate>
 @property (nonatomic, weak) UIPanGestureRecognizer *panGesture;
+@property (nonatomic, weak) UIPanGestureRecognizer *externalPanGesture;
 @property (nonatomic, weak) UITapGestureRecognizer *dimmingViewTapGesture;
 @property (nonatomic) CGFloat bottomHeight;
 @property (nonatomic) CGFloat bottomHeightAtStartOfGesture;
@@ -126,6 +127,10 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 - (void)updateGestureEnabledState {
     self.panGesture.enabled = !self.locked && !self.bottomHidden;
     self.dimmingViewTapGesture.enabled = self.panGesture.enabled;
+    
+    if (self.externalPanGesture != nil) {
+        self.externalPanGesture.enabled = self.panGesture.enabled;
+    }
 }
 
 #pragma mark Pan Gesture
@@ -140,6 +145,13 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     panGesture.delegate = self;
     [self updateGestureEnabledState];
     [vc.view addGestureRecognizer:panGesture];
+}
+
+- (void)setupPanGestureForExternalView:(UIView *)view {
+     UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePanGesture:)];
+    panGesture.delegate = self;
+    self.externalPanGesture = panGesture;
+    [view addGestureRecognizer:panGesture];
 }
 
 - (void)handlePanGesture:(UIPanGestureRecognizer *)gesture {
@@ -217,14 +229,14 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
-    NSAssert(gestureRecognizer == self.panGesture, @"Unexpected gesture recognizer: %@", gestureRecognizer);
+    NSAssert(gestureRecognizer == self.panGesture || gestureRecognizer == self.externalPanGesture, @"Unexpected gesture recognizer: %@", gestureRecognizer);
 
     // Do not interfere with scrollviews
     return NO;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRequireFailureOfGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
-    NSAssert(gestureRecognizer == self.panGesture, @"Unexpected gesture recognizer: %@", gestureRecognizer);
+    NSAssert(gestureRecognizer == self.panGesture || gestureRecognizer == self.externalPanGesture, @"Unexpected gesture recognizer: %@", gestureRecognizer);
 
     return self.requireOtherGestureRecognizersToFail;
 }
