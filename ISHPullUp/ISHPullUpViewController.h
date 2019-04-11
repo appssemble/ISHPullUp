@@ -232,6 +232,9 @@ typedef struct ISHPullUpAnimationConfiguration ISHPullUpAnimationConfiguration;
 /// If YES the pan gesture recognizer will require another gesture recognizers to fail. Default is YES.
 @property (nonatomic) BOOL requireOtherGestureRecognizersToFail;
 
+/// If YES the pan gesture recognizer will allow other gesture recognizers to work simultaneously. Default is NO.
+@property (nonatomic) BOOL allowOtherGestureRecognizersSimultaneously;
+
 /// The current state of the view controller.
 @property (nonatomic, readonly) ISHPullUpState state;
 

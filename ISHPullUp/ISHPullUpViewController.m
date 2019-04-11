@@ -59,6 +59,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     self.bottomHeight = ISHPullUpViewControllerDefaultMinimumHeight;
     self.snapToEnds = YES;
     self.requireOtherGestureRecognizersToFail = YES;
+    self.allowOtherGestureRecognizersSimultaneously = NO;
     self.snapThreshold = ISHPullUpViewControllerDefaultSnapThreshold;
     self.topMargin = ISHPullUpViewControllerDefaultTopMargin;
     self.dimmingColor = [UIColor colorWithWhite:0 alpha:0.4];
@@ -232,7 +233,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     NSAssert(gestureRecognizer == self.panGesture || gestureRecognizer == self.externalPanGesture, @"Unexpected gesture recognizer: %@", gestureRecognizer);
 
     // Do not interfere with scrollviews
-    return NO;
+    return self.allowOtherGestureRecognizersSimultaneously;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRequireFailureOfGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
