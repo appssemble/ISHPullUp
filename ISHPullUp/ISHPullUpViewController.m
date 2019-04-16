@@ -26,6 +26,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 @property (nonatomic) BOOL firstAppearCompleted;
 @property (nonatomic) BOOL didAppearCompleted;
 @property (nonatomic) BOOL isAnimatingStateChange;
+@property (nonatomic) BOOL isExpanded;
 @property (nonatomic, readwrite) BOOL bottomHidden;
 @end
 
@@ -54,7 +55,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 }
 
 - (void)setupPropertyDefaults {
-    // set default layout mode without calling setter to avoid premature layout calls 
+    // set default layout mode without calling setter to avoid premature layout calls
     _bottomLayoutMode = ISHPullUpBottomLayoutModeShift;
     self.bottomHeight = ISHPullUpViewControllerDefaultMinimumHeight;
     self.snapToEnds = YES;
@@ -158,7 +159,14 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 - (void)handlePanGesture:(UIPanGestureRecognizer *)gesture {
     BOOL animated = NO;
     CGFloat newHeight;
-
+    
+    CGFloat bottomHeight = self.bottomHeight;
+    if (bottomHeight <= [self minimumBottomHeight]) {
+        self.isExpanded = [self minimumBottomHeight] != bottomHeight;
+    } else if (bottomHeight >= [self maximumBottomHeightWithSize:self.view.bounds.size]) {
+        self.isExpanded = [self maximumBottomHeightWithSize:self.view.bounds.size] == bottomHeight;
+    }
+    
     switch (gesture.state) {
         case UIGestureRecognizerStatePossible:
             return;
@@ -208,10 +216,10 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
             // snap to top/bottom
             NSAssert(self.snapThreshold > 0, @"Snapthreshold should be positive.");
             NSAssert(self.snapThreshold < 1, @"Snapthreshold should be smaller than 1.");
-            if (newHeight > self.maximumBottomHeightCached * (1 - self.snapThreshold)) {
+            if (!self.isExpanded && newHeight > self.maximumBottomHeightCached * (1 - self.snapThreshold)) {
                 newHeight = self.maximumBottomHeightCached;
                 animated = YES;
-            } else if (self.minimumBottomHeightCached + self.maximumBottomHeightCached * self.snapThreshold > newHeight) {
+            } else if (self.isExpanded && self.minimumBottomHeightCached + self.maximumBottomHeightCached * self.snapThreshold > newHeight) {
                 newHeight = self.minimumBottomHeightCached;
                 animated = YES;
             }
