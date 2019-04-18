@@ -26,7 +26,6 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 @property (nonatomic) BOOL firstAppearCompleted;
 @property (nonatomic) BOOL didAppearCompleted;
 @property (nonatomic) BOOL isAnimatingStateChange;
-@property (nonatomic) BOOL isExpanded;
 @property (nonatomic, readwrite) BOOL bottomHidden;
 @end
 

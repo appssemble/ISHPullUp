@@ -294,6 +294,9 @@ typedef struct ISHPullUpAnimationConfiguration ISHPullUpAnimationConfiguration;
 /// that dimming will start half way between min and max height.
 @property (nonatomic) CGFloat dimmingThreshold;
 
+/// Returns YES if it's expanded.
+@property (nonatomic) BOOL isExpanded;
+
 /// Returns the current model value for the height of the bottomViewController.
 @property (nonatomic, readonly) CGFloat bottomHeight;
 
