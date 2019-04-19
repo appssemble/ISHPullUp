@@ -65,7 +65,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     self.dimmingColor = [UIColor colorWithWhite:0 alpha:0.4];
     self.dimmingThreshold = 0.5;
     self.bottomHiddenMargin = 10.0;
-
+    
     ISHPullUpAnimationConfiguration config;
     config.duration = 0.4;
     config.springDamping = 0.9;
@@ -79,7 +79,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     [self addViewOfSubViewController:self.bottomViewController belowView:nil];
     [self addViewOfSubViewController:self.contentViewController belowView:self.bottomViewController.view];
     [self setupPanGestureRecognizerForViewController:self.bottomViewController];
-
+    
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(UIApplicationDidChangeStatusBarFrameNotification:)
                                                  name:UIApplicationDidChangeStatusBarFrameNotification
@@ -88,12 +88,12 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-
+    
     if (!self.firstAppearCompleted) {
         [self updateCachedHeightsWithSize:self.view.bounds.size];
         self.bottomHeight = self.minimumBottomHeightCached;
         [self updateViewLayoutBottomHeight:self.bottomHeight withSize:self.view.bounds.size];
-
+        
         // update to current state
         [self.stateDelegate pullUpViewController:self didChangeToState:self.state];
     }
@@ -115,7 +115,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     if (!self.didAppearCompleted) {
         // in case there was a rotation event while hidden,
         // this is the earliest opportunity to fix the layout
-
+        
         [self invalidateLayout];
     }
 }
@@ -139,7 +139,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 - (void)setupPanGestureRecognizerForViewController:(UIViewController *)vc {
     // remove previous gesture recognizer if needed
     [self.panGesture.view removeGestureRecognizer:self.panGesture];
-
+    
     // setup new gesture recognizer on vc's view
     UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePanGesture:)];
     self.panGesture = panGesture;
@@ -149,7 +149,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 }
 
 - (void)setupPanGestureForExternalView:(UIView *)view {
-     UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePanGesture:)];
+    UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePanGesture:)];
     panGesture.delegate = self;
     self.externalPanGesture = panGesture;
     [view addGestureRecognizer:panGesture];
@@ -160,23 +160,23 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     CGFloat newHeight;
     
     CGFloat bottomHeight = self.bottomHeight;
-    if (bottomHeight <= [self minimumBottomHeight]) {
-        self.isExpanded = [self minimumBottomHeight] != bottomHeight;
-    } else if (bottomHeight >= [self maximumBottomHeightWithSize:self.view.bounds.size]) {
-        self.isExpanded = [self maximumBottomHeightWithSize:self.view.bounds.size] == bottomHeight;
+    if (bottomHeight == [self minimumBottomHeight]) {
+        self.isExpanded = NO;
+    } else if (bottomHeight == [self maximumBottomHeightWithSize:self.view.bounds.size]) {
+        self.isExpanded = YES;
     }
     
     switch (gesture.state) {
         case UIGestureRecognizerStatePossible:
             return;
-
+            
         case UIGestureRecognizerStateBegan:
             self.bottomHeightAtStartOfGesture = self.bottomHeight;
             self.stateAtStartOfGesture = [self state];
             [self.stateDelegate pullUpViewController:self didChangeToState:self.stateAtStartOfGesture];
             [self updateCachedHeightsWithSize:self.view.bounds.size];
             return; // no change in layout
-
+            
         case UIGestureRecognizerStateCancelled:
         case UIGestureRecognizerStateChanged:
         case UIGestureRecognizerStateEnded:
@@ -184,53 +184,51 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
             CGPoint translation = [gesture translationInView:self.view];
             CGFloat targetHeight = self.bottomHeightAtStartOfGesture - translation.y;
             CGFloat maxHeight = self.maximumBottomHeightCached;
-            // if above minimum -> add friction
+            
             if (targetHeight > maxHeight) {
-                CGFloat portionAboveMax = targetHeight - maxHeight;
-                CGFloat maxOvershoot = 100.0;
-                targetHeight = maxHeight + maxOvershoot * tanh(portionAboveMax / (maxOvershoot * 3.0));
+                targetHeight = maxHeight;
             }
-
+            
             // clip above minimum
             newHeight = MAX(self.minimumBottomHeightCached, targetHeight);
-
+            
             if (gesture.state == UIGestureRecognizerStateChanged) {
                 break;
             }
-
+            
             // Gesture ended:
             // clip to maximum
             newHeight = MIN(self.maximumBottomHeightCached, newHeight);
-
+            
             // allow sizing delegate to select other target height
             if (self.sizingDelegate && self.bottomViewController) {
                 newHeight = [self.sizingDelegate pullUpViewController:self targetHeightForBottomViewController:self.bottomViewController fromCurrentHeight:newHeight];
                 animated = YES;
             }
-
+            
             if (!self.snapToEnds) {
                 break;
             }
-
+            
             // snap to top/bottom
             NSAssert(self.snapThreshold > 0, @"Snapthreshold should be positive.");
             NSAssert(self.snapThreshold < 1, @"Snapthreshold should be smaller than 1.");
-            if (!self.isExpanded && newHeight > self.maximumBottomHeightCached * (1 - self.snapThreshold)) {
+            if (!self.isExpanded && ((newHeight > targetHeight) || (targetHeight == bottomHeight)) && bottomHeight != [self minimumBottomHeight] && newHeight >= self.maximumBottomHeightCached * (1 - self.snapThreshold)) {
                 newHeight = self.maximumBottomHeightCached;
                 animated = YES;
-            } else if (self.isExpanded && self.minimumBottomHeightCached + self.maximumBottomHeightCached * self.snapThreshold > newHeight) {
+            } else if (self.isExpanded && targetHeight < newHeight && self.minimumBottomHeightCached + self.maximumBottomHeightCached * self.snapThreshold >= newHeight) {
                 newHeight = self.minimumBottomHeightCached;
                 animated = YES;
             }
-
+            
             break;
         }
     }
-
+    
     [self setBottomHeight:newHeight animated:animated];
-
+    
     ISHPullUpState currentState = [self state];
-
+    
     if (currentState != self.stateAtStartOfGesture) {
         [self.stateDelegate pullUpViewController:self didChangeToState:currentState];
     }
@@ -238,14 +236,14 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
     NSAssert(gestureRecognizer == self.panGesture || gestureRecognizer == self.externalPanGesture, @"Unexpected gesture recognizer: %@", gestureRecognizer);
-
+    
     // Do not interfere with scrollviews
     return self.allowOtherGestureRecognizersSimultaneously;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRequireFailureOfGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
     NSAssert(gestureRecognizer == self.panGesture || gestureRecognizer == self.externalPanGesture, @"Unexpected gesture recognizer: %@", gestureRecognizer);
-
+    
     return self.requireOtherGestureRecognizersToFail;
 }
 
@@ -255,12 +253,12 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     if (contentViewController == _contentViewController) {
         return;
     }
-
+    
     if (_contentViewController.parentViewController == self) {
         // remove previous content VC if it was already added (and we are still the parent)
         [self removeSubViewController:_contentViewController];
     }
-
+    
     _contentViewController = contentViewController;
     // insert contentViewController's view below dimming view or bottomViewController.view if any of those are loaded
     [self addViewOfSubViewController:_contentViewController belowView:self.dimmingView ?: self.bottomViewController.view];
@@ -270,15 +268,15 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     if (bottomViewController == _bottomViewController) {
         return;
     }
-
+    
     if (_bottomViewController.parentViewController == self) {
         // remove previous bottom VC if it was already added (and we are still the parent)
         [self removeSubViewController:_bottomViewController];
     }
-
+    
     _bottomViewController = bottomViewController;
     [self addViewOfSubViewController:_bottomViewController belowView:nil];
-
+    
     if (self.isViewLoaded) {
         [self setupPanGestureRecognizerForViewController:bottomViewController];
         [self updateCachedHeightsWithSize:self.view.bounds.size];
@@ -303,29 +301,29 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 - (ISHPullUpState)state {
     UIGestureRecognizerState gestureState = self.panGesture.state;
     BOOL gestureIsDragging = (gestureState == UIGestureRecognizerStateBegan) || (gestureState == UIGestureRecognizerStateChanged);
-
+    
     if (gestureIsDragging || self.isAnimatingStateChange) {
         return ISHPullUpStateDragging;
     }
-
+    
     CGFloat bottomHeight = self.bottomHeight;
-
+    
     if (bottomHeight <= [self minimumBottomHeight]) {
         return ISHPullUpStateCollapsed;
     }
-
+    
     if (bottomHeight >= [self maximumBottomHeightWithSize:self.view.bounds.size]) {
         return ISHPullUpStateExpanded;
     }
-
+    
     return ISHPullUpStateIntermediate;
 }
 
 - (void)setState:(ISHPullUpState)state animated:(BOOL)animated {
     ISHPullUpState oldState = [self state];
-
+    
     BOOL stateChanges = (state != oldState);
-
+    
     NSAssert(state != ISHPullUpStateIntermediate, @"Setting an intermediate state has no effect.");
     NSAssert(state != ISHPullUpStateDragging, @"Setting a dragging state has no effect.");
     CGFloat newHeight;
@@ -334,17 +332,17 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
         case ISHPullUpStateExpanded:
             newHeight = self.maximumBottomHeightCached;
             break;
-
+            
         case ISHPullUpStateCollapsed:
             newHeight = self.minimumBottomHeightCached;
             break;
-
+            
         case ISHPullUpStateIntermediate:
         case ISHPullUpStateDragging:
             // no effect
             return;
     }
-
+    
     [self setBottomHeight:newHeight animated:animated];
     if (stateChanges) {
         [self.stateDelegate pullUpViewController:self didChangeToState:state];
@@ -363,7 +361,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     if (bottomLayoutMode == _bottomLayoutMode) {
         return;
     }
-
+    
     _bottomLayoutMode = bottomLayoutMode;
     [self updateViewLayoutBottomHeight:self.bottomHeight withSize:self.view.bounds.size];
 }
@@ -379,7 +377,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     if (!self.bottomViewController) {
         return 0;
     }
-
+    
     CGFloat additionalHeight;
 #if  __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_11_0
     additionalHeight = self.view.safeAreaInsets.bottom;
@@ -390,11 +388,11 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
         additionalHeight = self.bottomLayoutGuide.length;
     }
 #endif
-
+    
     if (!self.sizingDelegate) {
         return ISHPullUpViewControllerDefaultMinimumHeight + additionalHeight;
     }
-
+    
     return [self.sizingDelegate pullUpViewController:self minimumHeightForBottomViewController:self.bottomViewController] + additionalHeight;
 }
 
@@ -408,11 +406,11 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 
 - (CGFloat)maximumBottomHeightWithSize:(CGSize)size  {
     CGFloat maximumAvailableHeight = [self maximumAvailableHeightWithSize:size];
-
+    
     if (!self.sizingDelegate || !self.bottomViewController) {
         return maximumAvailableHeight;
     }
-
+    
     return MIN(maximumAvailableHeight, [self.sizingDelegate pullUpViewController:self maximumHeightForBottomViewController:self.bottomViewController maximumAvailableHeight:maximumAvailableHeight]);
 }
 
@@ -425,31 +423,31 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     if (!bottomHidden == !_bottomHidden) {
         return;
     }
-
+    
     _bottomHidden = bottomHidden;
     [self updateGestureEnabledState];
-
+    
     UIViewController *bottomVC = self.bottomViewController;
-
+    
     if (!bottomHidden) {
         bottomVC.view.hidden = NO;
         [bottomVC viewWillAppear:animated];
     } else {
         [bottomVC viewWillDisappear:animated];
     }
-
+    
     void (^updateBlock)(void) = ^{
         [self setDimmingViewHidden:[self dimmingViewShouldBeHidden] height:self.bottomHeight];
         [self updateViewLayoutBottomHeight:self.bottomHeight withSize:self.view.bounds.size];
     };
-
+    
     __weak ISHPullUpViewController *weakSelf = self;
     void (^completion)(BOOL) = ^(BOOL finished) {
         ISHPullUpViewController *strongSelf = weakSelf;
         if (!finished || !strongSelf) {
             return;
         }
-
+        
         if (bottomHidden) {
             [strongSelf.bottomViewController viewDidDisappear:animated];
             [strongSelf.bottomViewController.view setHidden:YES];
@@ -457,7 +455,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
             [strongSelf.bottomViewController viewDidAppear:animated];
         }
     };
-
+    
     if (animated) {
         [[self class] springAnimationWithConfig:self.animationConfiguration
                                      animations:updateBlock
@@ -470,7 +468,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 
 + (void)springAnimationWithConfig:(ISHPullUpAnimationConfiguration)config animations:(void (^)(void))animations completion:(void (^__nullable)(BOOL finished))completion {
     NSAssert(config.options & UIViewAnimationOptionLayoutSubviews, @"Animation options must always contain UIViewAnimationOptionLayoutSubviews");
-
+    
     [UIView animateWithDuration:config.duration
                           delay:0
          usingSpringWithDamping:config.springDamping
@@ -484,31 +482,31 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     if (bottomHeight == self.bottomHeight) {
         return;
     }
-
+    
     CGFloat oldHeight = self.bottomHeight;
     self.bottomHeight = bottomHeight;
     BOOL dimmingViewHidden = [self dimmingViewShouldBeHidden];
-
+    
     void (^updateBlock)(void);
     updateBlock = ^{
         self.isAnimatingStateChange = animated;
-
+        
         // setup (hide) dimming view with oldheight
         // this allows the animation to start from the old height and animate along
         [self setDimmingViewHidden:dimmingViewHidden height:oldHeight];
         [self updateViewLayoutBottomHeight:bottomHeight withSize:self.view.bounds.size];
-
+        
         if (animated) {
             // when animating, we need an intermediate state
             [self.stateDelegate pullUpViewController:self didChangeToState:[self state]];
         }
     };
-
+    
     if (!animated) {
         updateBlock();
         return;
     }
-
+    
     __weak ISHPullUpViewController *weakSelf = self;
     [[self class] springAnimationWithConfig:self.animationConfiguration
                                  animations:updateBlock
@@ -526,14 +524,14 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     if (self.bottomHidden) {
         return YES;
     }
-
+    
     CGFloat maximumHeightOverMinimum = self.maximumBottomHeightCached - self.minimumBottomHeightCached;
-
+    
     if (maximumHeightOverMinimum <= 0) {
         // if the view cannot be extended beyond minimum always hide dimming view
         return YES;
     }
-
+    
     CGFloat heightOverMinimum = self.bottomHeight - self.minimumBottomHeightCached;
     return heightOverMinimum < (self.dimmingThreshold * maximumHeightOverMinimum);
 }
@@ -545,11 +543,11 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     }
     CGFloat clampedBottomHeight = MAX(bottomHeight, self.minimumBottomHeightCached);
     CGRect bounds = CGRectMake(0, 0, size.width, size.height);
-
+    
     // content fills entire view
     [self.contentViewController.view setFrame:bounds];
     [self updateLayoutOfDimmingView:self.dimmingView bottomHeight:bottomHeight];
-
+    
     CGRect bottomFrame = CGRectZero;
     switch (self.bottomLayoutMode) {
         case ISHPullUpBottomLayoutModeShift: {
@@ -561,27 +559,27 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
             CGFloat maxHeight = self.maximumBottomHeightCached;
             CGFloat expandedBottomHeight = MAX(maxHeight, clampedBottomHeight);
             CGFloat yPosition = CGRectGetMaxY(bounds) - clampedBottomHeight;
-
+            
             bottomFrame = CGRectMake(0, yPosition, CGRectGetWidth(bounds), expandedBottomHeight);
             break;
         }
-
+            
         case ISHPullUpBottomLayoutModeResize: {
             clampedBottomHeight = bottomHeight;
             CGFloat yPosition = CGRectGetMaxY(bounds) - clampedBottomHeight;
-
+            
             bottomFrame = CGRectMake(0, yPosition, CGRectGetWidth(bounds), clampedBottomHeight);
             break;
         }
     }
-
+    
     if (self.bottomHidden) {
         // hide the bottom view by moving the view below the view and add the bottomHiddenMargin
         bottomFrame = CGRectOffset(bottomFrame, 0, size.height - bottomFrame.origin.y + self.bottomHiddenMargin);
     }
-
+    
     [self.bottomViewController.view setFrame:bottomFrame];
-
+    
     // inform content delegate that edge insets were updated
     if (self.contentViewController) {
         /* Avoid duplicating the bottom safe area
@@ -599,7 +597,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
             bottomInset -= self.bottomLayoutGuide.length;
         }
 #endif
-
+        
         [self.contentDelegate pullUpViewController:self
                                   updateEdgeInsets:UIEdgeInsetsMake(0, 0, bottomInset, 0)
                           forContentViewController:self.contentViewController];
@@ -645,14 +643,14 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
         NSAssert(!vc.parentViewController, @"addViewOfSubViewController: should not be called for view controllers already have a parent view controller");
         return;
     }
-
+    
     [self addChildViewController:vc];
     if ([belowView isDescendantOfView:self.view]) {
         [self.view insertSubview:vc.view belowSubview:belowView];
     } else {
         [self.view addSubview:vc.view];
     }
-
+    
     [self updateViewLayoutBottomHeight:self.bottomHeight withSize:self.view.bounds.size];
     [vc didMoveToParentViewController:self];
 }
@@ -662,7 +660,7 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
         NSAssert(vc.parentViewController == self, @"removeSubViewController should only be used for child view controllers.");
         return;
     }
-
+    
     [vc willMoveToParentViewController:nil];
     [vc.view removeFromSuperview];
     [vc removeFromParentViewController];
@@ -675,13 +673,13 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     if (self.dimmingView.alpha) {
         return UIStatusBarStyleLightContent;
     }
-
+    
     return self.contentViewController.preferredStatusBarStyle;
 }
 
 - (void)setDimmingColor:(UIColor *)dimmingColor {
     _dimmingColor = dimmingColor;
-
+    
     if (!dimmingColor) {
         // hide any current dimming view
         [self setDimmingViewHidden:YES height:self.bottomHeight];
@@ -693,17 +691,17 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
         // view is not loaded or dimming is disabled
         return;
     }
-
+    
     BOOL dimmingViewIsNotLoaded = (self.dimmingView == nil);
     BOOL dimmingViewIsInvisible = (self.dimmingView.alpha == 0);
-
+    
     // if hidden matches the current load state of the dimming view
     // or if hidden matches the current visibilty of the dimming view
     // do nothing
     if ((!hidden == !dimmingViewIsNotLoaded) || (!hidden == !dimmingViewIsInvisible)) {
         return;
     }
-
+    
     UIView *dimmingView = [self dimmingViewWithBottomHeight:height];
     [UIView animateWithDuration:0.25
                           delay:0
@@ -721,11 +719,11 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
 // Returns the currently loaded dimming view or loads a new one.
 - (ISHPullUpDimmingView *)dimmingViewWithBottomHeight:(CGFloat)bottomHeight {
     ISHPullUpDimmingView *dimmingView = self.dimmingView;
-
+    
     if (dimmingView) {
         return dimmingView;
     }
-
+    
     // setup new dimming view
     dimmingView = [ISHPullUpDimmingView new];
     [dimmingView setColor:self.dimmingColor];
@@ -734,12 +732,12 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
     self.dimmingViewTapGesture = collapseTap;
     collapseTap.enabled = !self.locked;
     [dimmingView addGestureRecognizer:collapseTap];
-
+    
     // handle rounded view if root view of bottom view controller is rounded
     if ([self.bottomViewController.view isKindOfClass:[ISHPullUpRoundedView class]]) {
         dimmingView.roundedView = (ISHPullUpRoundedView *)self.bottomViewController.view;
     }
-
+    
     // add dimming view to view hierachy
     if ([self.bottomViewController.view isDescendantOfView:self.view]) {
         [self.view insertSubview:dimmingView belowSubview:self.bottomViewController.view];
@@ -747,12 +745,12 @@ const CGFloat ISHPullUpViewControllerDefaultTopMargin = 20.0;
         [self.view addSubview:dimmingView];
     }
     [self setDimmingView:dimmingView];
-
+    
     // setup initial frame without animation (may be called within an animation block)
     [UIView performWithoutAnimation:^{
         [self updateLayoutOfDimmingView:dimmingView bottomHeight:bottomHeight];
     }];
-
+    
     return dimmingView;
 }
 
